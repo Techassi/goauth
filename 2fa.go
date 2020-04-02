@@ -15,10 +15,11 @@ type TWOFAMethod interface {
 type Totp struct {
 	SecretLength int
 	Issuer       string
+	CryptoMethod func(int) (string, error)
 }
 
 func (totp *Totp) Secret() (string, error) {
-	return randomCryptoString(totp.SecretLength)
+	return totp.CryptoMethod(totp.SecretLength)
 }
 
 func (totp *Totp) Uri() string {
@@ -32,15 +33,34 @@ func (totp *Totp) Validate() bool {
 type Email struct {
 }
 
+// TOTP registers TOTP (Time-based one-time password) as a 2FA method and uses the default
+// secret method
 func TOTP(issuer string, n int) AuthenticatorOption {
 	return func(auth *authenticator) {
-		auth.twoFaMethod = newTotp(issuer, n)
+		auth.twoFaMethod = newTotp(issuer, n, nil)
 	}
 }
 
-func newTotp(issuer string, n int) TWOFAMethod {
+// TOTPwithSecret registers TOTP (Time-based one-time password) as a 2FA method and you
+// can provide a custom secret function
+func TOTPwithSecret(issuer string, n int, crypto func(int) (string, error)) AuthenticatorOption {
+	return func(auth *authenticator) {
+		auth.twoFaMethod = newTotp(issuer, n, crypto)
+	}
+}
+
+func newTotp(issuer string, n int, c func(int) (string, error)) TWOFAMethod {
+	if c != nil {
+		return &Totp{
+			Issuer:       issuer,
+			SecretLength: n,
+			CryptoMethod: c,
+		}
+	}
+
 	return &Totp{
 		Issuer:       issuer,
 		SecretLength: n,
+		CryptoMethod: randomCryptoString,
 	}
 }

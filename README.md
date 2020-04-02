@@ -4,7 +4,15 @@ This library is very much under **active** development. It is **not** usable (ye
 
 goauth provides a context-based and plugable authenticator for authentication on the web.
 
-## Example
+## Supported authentication methods
+
+-   JWT (JSON Web Token)
+
+## Supported 2FA methods
+
+-   TOTP (Time-based One-time Password)
+
+## Usage
 
 ```golang
 import "github.com/Techassi/goauth"
@@ -15,11 +23,16 @@ auth := goauth.New(
 )
 ```
 
-## Supported authentication methods
-- JWT (JSON Web Token)
+## Custom TOTP secret method
 
-## Supported 2FA methods
-- TOTP (Time-based One-time Password)
+```golang
+auth := goauth.New(
+    goauth.JWT("HS512", []byte("secret")),
+    goauth.TOTPwithSecret("issuer", 16, secretMethod),
+)
+```
+
+Your custom secret method needs to implement `func(length int) (secret string, err error)`.
 
 ## Custom authentication & 2FA methods
 
