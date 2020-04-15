@@ -1,7 +1,7 @@
 package goauth
 
 import (
-	"context"
+	"sync"
 
 	jwt "github.com/dgrijalva/jwt-go"
 )
@@ -12,19 +12,25 @@ type AuthenticatorOption func(auth *authenticator)
 type (
 	// Authenticator is the top level Autenticator interface
 	Authenticator interface {
-		Authenticate(user interface{}) (context.Context, error)
+		Authenticate(user interface{}) (Context, error)
 	}
 
 	// authenticator is the internal authenticator struct
 	authenticator struct {
-		twoFaMethod          TWOFAMethod
-		authenticationMethod AuthenticationMethod
+		twoFaMethod map[string]TwoFAMethod
+		authMethod  AuthenticationMethod
+		pool        sync.Pool
 	}
 )
 
 // New will create a new Authenticator with the provided AuthenticatorOption (s)
 func New(options ...AuthenticatorOption) Authenticator {
-	auth := &authenticator{}
+	auth := &authenticator{
+		twoFaMethod: make(map[string]TwoFAMethod),
+	}
+	auth.pool.New = func() interface{} {
+		return auth.newContext(nil)
+	}
 
 	for _, f := range options {
 		f(auth)
@@ -34,8 +40,16 @@ func New(options ...AuthenticatorOption) Authenticator {
 }
 
 // Authenticate will authenticate the user with the configured authentication method
-func (auth *authenticator) Authenticate(user interface{}) (context.Context, error) {
-	return context.Background(), nil
+func (auth *authenticator) Authenticate(user interface{}) (Context, error) {
+	ctx := auth.newContext(user)
+	return ctx, nil
+}
+
+func (auth *authenticator) newContext(user interface{}) Context {
+	return &context{
+		user:          user,
+		authenticator: auth,
+	}
 }
 
 // AuthenticationMethod provides an interface to provide different autehntication methods
@@ -54,7 +68,7 @@ func (jwt *Jwt) String() string {
 
 func JWT(method string, secret []byte) AuthenticatorOption {
 	return func(auth *authenticator) {
-		auth.authenticationMethod = newJwt(method, secret)
+		auth.authMethod = newJwt(method, secret)
 	}
 }
 
