@@ -15,6 +15,7 @@ type (
 	// Authenticator is the top level Autenticator interface
 	Authenticator interface {
 		Authenticate(user interface{}) (Context, error)
+		Middleware() func(http.ResponseWriter, *http.Request)
 		EchoMiddleware() echo.HandlerFunc
 		GinMiddleware() gin.HandlerFunc
 	}

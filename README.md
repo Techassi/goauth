@@ -19,8 +19,8 @@ import "github.com/Techassi/goauth"
 
 auth := goauth.New(
 	goauth.LOOKUP(yourLookupMethod),
-    goauth.JWT("HS512", []byte("secret"), "cookie"),
-    goauth.TOTP("issuer", 16),
+	goauth.JWT("HS512", []byte("secret"), "cookie"),
+	goauth.TOTP("issuer", 16),
 )
 
 func yourLookupMethod(i interface{}) (bool, error) {
@@ -34,8 +34,8 @@ func yourLookupMethod(i interface{}) (bool, error) {
 
 ```golang
 auth := goauth.New(
-    goauth.JWT("HS512", []byte("secret")),
-    goauth.TOTPwithSecret("issuer", 16, secretMethod),
+	goauth.JWT("HS512", []byte("secret")),
+	goauth.TOTPwithSecret("issuer", 16, secretMethod),
 )
 ```
 
