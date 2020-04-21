@@ -59,6 +59,23 @@ func (auth *authenticator) Authenticate(user interface{}) (Context, error) {
 	return ctx, nil
 }
 
+// Middleware provides a middleware func for the net/http to protect routes
+func (auth *authenticator) Middleware() func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		t, err := auth.authMethod.Lookup()
+		if err != nil {
+			auth.json(w, http.StatusInternalServerError, ErrorKeyLookup(err))
+		}
+
+		valid, err := auth.authMethod.Validate(t)
+		if !valid || err != nil {
+			auth.json(w, http.StatusUnauthorized, StatusUnauthorized(err))
+		}
+
+		auth.json(w, http.StatusOK, StatusAuthorized())
+	}
+}
+
 // EchoMiddleware provides a middleware func for the echo framework to protect routes
 func (auth *authenticator) EchoMiddleware() echo.HandlerFunc {
 	return func(c echo.Context) error {
