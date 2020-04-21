@@ -5,6 +5,7 @@ import (
 )
 
 type Context interface {
+	Key() string
 	User() interface{}
 	TwoFA() string
 	UsesTwoFA() bool
@@ -12,9 +13,14 @@ type Context interface {
 
 type context struct {
 	user          interface{}
+	key           string
 	valid         bool
 	retries       int
 	authenticator Authenticator
+}
+
+func (c *context) Key() string {
+	return c.key
 }
 
 func (c *context) User() interface{} {

@@ -18,9 +18,16 @@ goauth provides a context-based and plugable authenticator for authentication on
 import "github.com/Techassi/goauth"
 
 auth := goauth.New(
-    goauth.JWT("HS512", []byte("secret")),
+	goauth.LOOKUP(yourLookupMethod),
+    goauth.JWT("HS512", []byte("secret"), "cookie"),
     goauth.TOTP("issuer", 16),
 )
+
+func yourLookupMethod(i interface{}) (bool, error) {
+	// Your user lookup / validation logic
+	// return true if user is found and err == nil if validation is okay
+	return true, nil
+}
 ```
 
 ## Custom TOTP secret method
