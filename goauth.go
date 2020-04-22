@@ -12,15 +12,15 @@ import (
 type AuthenticatorOption func(auth *authenticator)
 
 type (
-	// Authenticator is the top level Autenticator interface
+	// Authenticator is the top level Authenticator interface
 	Authenticator interface {
 		Authenticate(user interface{}) (Context, error)
-		Middleware() func(http.ResponseWriter, *http.Request)
-		EchoMiddleware() echo.HandlerFunc
+		Middleware(next http.Handler) http.Handler
+		EchoMiddleware() echo.MiddlewareFunc
 		GinMiddleware() gin.HandlerFunc
 	}
 
-	// authenticator is the internal authenticator struct
+	// authenticator is the internal struct
 	authenticator struct {
 		lookupMethod LookupMethod
 		twoFaMethod  map[string]TwoFAMethod
@@ -29,13 +29,13 @@ type (
 	}
 )
 
-// New will create a new Authenticator with the provided AuthenticatorOption (s)
+// New will create a new Authenticator with the provided AuthenticatorOption(s)
 func New(options ...AuthenticatorOption) Authenticator {
 	auth := &authenticator{
 		twoFaMethod: make(map[string]TwoFAMethod),
 	}
 	auth.pool.New = func() interface{} {
-		return auth.newContext(nil)
+		return auth.newContext(nil, "")
 	}
 
 	for _, f := range options {
@@ -52,18 +52,25 @@ func New(options ...AuthenticatorOption) Authenticator {
 // 	3. Create token / key
 // 	4. Return context
 func (auth *authenticator) Authenticate(user interface{}) (Context, error) {
-	if exists, err := auth.lookupMethod.Lookup(user); !exists {
+	if exists, err := auth.lookupMethod.Do(user); !exists {
 		return nil, err
 	}
 
-	ctx := auth.newContext(user)
+	claims := make(map[string]interface{})
+	claims["user"] = user
+	token, err := auth.authMethod.Create(claims)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx := auth.newContext(user, token)
 	return ctx, nil
 }
 
 // Middleware provides a middleware func for the net/http to protect routes
-func (auth *authenticator) Middleware() func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		t, err := auth.authMethod.Lookup()
+func (auth *authenticator) Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t, err := auth.authMethod.Lookup(r)
 		if err != nil {
 			auth.json(w, http.StatusInternalServerError, ErrorKeyLookup(err))
 		}
@@ -73,31 +80,33 @@ func (auth *authenticator) Middleware() func(http.ResponseWriter, *http.Request)
 			auth.json(w, http.StatusUnauthorized, StatusUnauthorized(err))
 		}
 
-		auth.json(w, http.StatusOK, StatusAuthorized())
-	}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // EchoMiddleware provides a middleware func for the echo framework to protect routes
-func (auth *authenticator) EchoMiddleware() echo.HandlerFunc {
-	return func(c echo.Context) error {
-		t, err := auth.authMethod.Lookup()
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorKeyLookup(err))
-		}
+func (auth *authenticator) EchoMiddleware() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			t, err := auth.authMethod.Lookup(c.Request())
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, ErrorKeyLookup(err))
+			}
 
-		valid, err := auth.authMethod.Validate(t)
-		if !valid || err != nil {
-			return c.JSON(http.StatusUnauthorized, StatusUnauthorized(err))
-		}
+			valid, err := auth.authMethod.Validate(t)
+			if !valid || err != nil {
+				return c.JSON(http.StatusUnauthorized, StatusUnauthorized(err))
+			}
 
-		return c.JSON(http.StatusOK, StatusAuthorized())
+			return next(c)
+		}
 	}
 }
 
 // GinMiddleware provides a middleware func for the gin framework to protect routes
 func (auth *authenticator) GinMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		t, err := auth.authMethod.Lookup()
+		t, err := auth.authMethod.Lookup(c.Request)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, ErrorKeyLookup(err))
 		}
@@ -107,13 +116,14 @@ func (auth *authenticator) GinMiddleware() gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, StatusUnauthorized(err))
 		}
 
-		c.JSON(http.StatusOK, StatusAuthorized())
+		c.Next()
 	}
 }
 
-func (auth *authenticator) newContext(user interface{}) Context {
+func (auth *authenticator) newContext(user interface{}, token string) Context {
 	return &context{
 		user:          user,
 		authenticator: auth,
+		key:           token,
 	}
 }

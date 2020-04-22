@@ -1,17 +1,18 @@
 package goauth
 
 import (
-	"fmt"
+	"net/http"
+	"strings"
 
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
 // AuthenticationMethod provides an interface to provide different authentication methods
 type AuthenticationMethod interface {
-	String() string
+	Name() string
 	Create(map[string]interface{}) (string, error)
 	Validate(string) (bool, error)
-	Lookup() (string, error)
+	Lookup(*http.Request) (string, error)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -20,20 +21,29 @@ type AuthenticationMethod interface {
 
 // Jwt is the top-level JWT authentication method
 type Jwt struct {
+	// Signing method, used to sign your JWT tokens
+	// Required.
 	SigningMethod jwt.SigningMethod
-	Secret        []byte
-	LookupString  string
+
+	// Secret, used to validate token
+	// Required.
+	Secret []byte
+
+	// LookupString, used to lookup to token in form of <source>:<name>, e.g.
+	// cookie:Authorization
+	// Required.
+	LookupString string
 }
 
-// String returns the name of the authentication method
-func (j *Jwt) String() string {
+// Name returns the name of the authentication method
+func (j *Jwt) Name() string {
 	return "jwt"
 }
 
 // Create creates a new JWT token
 func (j *Jwt) Create(c map[string]interface{}) (string, error) {
 	var (
-		claims jwt.MapClaims
+		claims jwt.MapClaims = make(jwt.MapClaims)
 		token  *jwt.Token
 	)
 
@@ -47,23 +57,32 @@ func (j *Jwt) Create(c map[string]interface{}) (string, error) {
 
 // Validate validates the JWT token
 func (j *Jwt) Validate(key string) (bool, error) {
+	if key == "" {
+		return false, ErrorEmptyKey
+	}
+
 	token, err := jwt.Parse(key, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-		}
 		return j.Secret, nil
 	})
+	if err != nil {
+		return false, err
+	}
 
-	return token.Valid, err
+	return token.Valid, nil
 }
 
 // Lookup looks up the token
-func (j *Jwt) Lookup() (string, error) {
-	switch j.LookupString {
+func (j *Jwt) Lookup(r *http.Request) (string, error) {
+	l := strings.Split(j.LookupString, ":")
+	switch l[0] {
 	case "cookie":
-		return "", nil
+		c, err := r.Cookie(l[1])
+		if err != nil {
+			return "", err
+		}
+		return c.Value, nil
 	case "header":
-		return "", nil
+		return r.Header.Get(l[1]), nil
 	default:
 		return "", ErrorUnsupportedKeyLookup
 	}
@@ -108,7 +127,15 @@ func newJwt(method string, s []byte, l string) AuthenticationMethod {
 		panic("Unsupported signing method")
 	}
 
-	if l == "" || (l != "cookie" && l != "header") {
+	if len(s) == 0 {
+		panic("Empty secret")
+	}
+
+	if l == "" {
+		panic("Key lookup cannot be empty")
+	}
+
+	if !strings.Contains(l, "cookie") && !strings.Contains(l, "header") {
 		panic("Unsupported key lookup")
 	}
 

@@ -1,27 +1,28 @@
 package goauth
 
+// LookupMethod represents how user data is looked up
 type LookupMethod interface {
-	Lookup(interface{}) (bool, error)
+	Do(interface{}) (bool, error)
 }
 
-type Lookup struct {
+type lookup struct {
 	Method func(interface{}) (bool, error)
 }
 
-// Lookup executes the lookup method
-func (l *Lookup) Lookup(i interface{}) (bool, error) {
+// Do executes the lookup method
+func (l *lookup) Do(i interface{}) (bool, error) {
 	return l.Method(i)
 }
 
-// LOOKUP registers a lookup method in form of func(interface{}) (bool, error)
-func LOOKUP(f func(interface{}) (bool, error)) AuthenticatorOption {
+// Lookup registers a lookup method in form of func(interface{}) (bool, error)
+func Lookup(f func(interface{}) (bool, error)) AuthenticatorOption {
 	return func(auth *authenticator) {
 		auth.lookupMethod = newLookup(f)
 	}
 }
 
 func newLookup(f func(interface{}) (bool, error)) LookupMethod {
-	return &Lookup{
+	return &lookup{
 		Method: f,
 	}
 }
