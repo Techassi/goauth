@@ -14,16 +14,18 @@ type AuthenticatorOption func(auth *authenticator)
 type (
 	// Authenticator is the top level Authenticator interface
 	Authenticator interface {
-		Authenticate(user interface{}) (Context, error)
+		Identify(user interface{}) (Context, error)
 		Middleware(next http.Handler) http.Handler
 		EchoMiddleware() echo.MiddlewareFunc
 		GinMiddleware() gin.HandlerFunc
+		TwoFAMethod(string) TwoFAMethod
+		TwoFAMethods() map[string]TwoFAMethod
 	}
 
 	// authenticator is the internal struct
 	authenticator struct {
 		lookupMethod LookupMethod
-		twoFaMethod  map[string]TwoFAMethod
+		twoFaMethods map[string]TwoFAMethod
 		authMethod   AuthenticationMethod
 		pool         sync.Pool
 	}
@@ -32,10 +34,10 @@ type (
 // New will create a new Authenticator with the provided AuthenticatorOption(s)
 func New(options ...AuthenticatorOption) Authenticator {
 	auth := &authenticator{
-		twoFaMethod: make(map[string]TwoFAMethod),
+		twoFaMethods: make(map[string]TwoFAMethod),
 	}
 	auth.pool.New = func() interface{} {
-		return auth.newContext(nil, "")
+		return auth.newContext(nil)
 	}
 
 	for _, f := range options {
@@ -51,19 +53,19 @@ func New(options ...AuthenticatorOption) Authenticator {
 // 	2. Lookup the user and validate
 // 	3. Create token / key
 // 	4. Return context
-func (auth *authenticator) Authenticate(user interface{}) (Context, error) {
+func (auth *authenticator) Identify(user interface{}) (Context, error) {
 	if exists, err := auth.lookupMethod.Do(user); !exists {
 		return nil, err
 	}
 
-	claims := make(map[string]interface{})
-	claims["user"] = user
-	token, err := auth.authMethod.Create(claims)
-	if err != nil {
-		return nil, err
-	}
+	// claims := make(map[string]interface{})
+	// claims["user"] = user
+	// token, err := auth.authMethod.Create(claims)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	ctx := auth.newContext(user, token)
+	ctx := auth.newContext(user)
 	return ctx, nil
 }
 
@@ -120,10 +122,18 @@ func (auth *authenticator) GinMiddleware() gin.HandlerFunc {
 	}
 }
 
-func (auth *authenticator) newContext(user interface{}, token string) Context {
+func (auth *authenticator) TwoFAMethods() map[string]TwoFAMethod {
+	return auth.twoFaMethods
+}
+
+func (auth *authenticator) TwoFAMethod(key string) TwoFAMethod {
+	return auth.twoFaMethods[key]
+}
+
+// TODO: Extract user 2FA information
+func (auth *authenticator) newContext(user interface{}) Context {
 	return &context{
 		user:          user,
 		authenticator: auth,
-		key:           token,
 	}
 }

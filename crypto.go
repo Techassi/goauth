@@ -12,5 +12,19 @@ func randomCryptoString(n int) (string, error) {
 		return "", err
 	}
 
-	return base32.StdEncoding.EncodeToString(s), nil
+	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(s), nil
+}
+
+func randomCryptoBytes(n int) ([]byte, error) {
+	s := make([]byte, n)
+	_, err := rand.Read(s)
+	if err != nil {
+		return []byte(""), err
+	}
+
+	return s, nil
+}
+
+func bytesToString(b []byte) string {
+	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b)
 }

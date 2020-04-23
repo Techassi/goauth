@@ -21,7 +21,8 @@ import "github.com/Techassi/goauth"
 ```
 
 ### Lookup function
-With this function you can specify how the user data should be looked up upon calling 
+
+With this function you can specify how the user data should be looked up upon calling
 `goauth.Authenticate()`.
 
 ```golang
@@ -44,7 +45,8 @@ func yourLookupFunction(i interface{}) (valid bool, err error) {
 ```
 
 ### Authentication
-The authentication is plugable just like the lookup function. There are currently two 
+
+The authentication is plugable just like the lookup function. There are currently two
 ready-to-use built-in authentication methods: JWT (JSON Web Token) and Sessions (work in
 progress).
 
@@ -57,15 +59,18 @@ auth := goauth.New(
 ```
 
 `goauth.JWT()` provides many customization options like:
-- The signing method: You can provide the signing method. Since `goauth.JWT()` uses `jwt-go` you can use every method `jwt-go` has to offer.
-- The secret: You can provide a secret with will be used to sign the tokens. (Hint: Don't hardcode this into your source code and rather set this via database, config file or enviroment variable)
-- Token lookup: You can specify how the token should be looked up in form of `<method>:<name>`, with `header` and `cookie` as possible values for `<method>`, e.g. `cookie:Authorization`.
+
+-   The signing method: You can provide the signing method. Since `goauth.JWT()` uses `jwt-go` you can use every method `jwt-go` has to offer.
+-   The secret: You can provide a secret which will be used to sign the tokens. (Hint: Don't hardcode this into your source code and rather set this via database, config file or enviroment variable)
+-   Token lookup: You can specify how the token should be looked up in form of `<method>:<name>`, with `header` and `cookie` as possible values for `<method>`, e.g. `cookie:Authorization`.
 
 #### Sessions authentication (work in progress)
+
 Sessions are still in work. This section will be updated once they are finished.
 
 ### 2FA authentication
-The 2FA autehntication is plugable just like the authentication function. There is currently one 
+
+The 2FA authentication is plugable just like the authentication function. There is currently one
 ready-to-use built-in authentication method: TOTP (Time-based One-time Passwords)
 
 #### TOTP (Time-based One-time Passwords)
@@ -77,8 +82,9 @@ auth := goauth.New(
 ```
 
 `goauth.TOTP()` provides the following customization options:
-- The issuer: Specify the issuer to be used when generating the TOTP URI.
-- The secret size: Specify the size of the secret, which gets generated with every new TOTP URI.
+
+-   The issuer: Specify the issuer to be used when generating the TOTP URI.
+-   The secret size: Specify the size of the secret, which gets generated with every new TOTP URI.
 
 #### Custom TOTP secret method
 
@@ -89,7 +95,8 @@ auth := goauth.New(
 ```
 
 `goauth.TOTPwithSecret()` provides one additional option:
-- Secret method: Provide a custom secret method in form of `func(length int) (secret string, err error)`.
+
+-   Secret method: Provide a custom secret method in form of `func(length int) (secret []byte, err error)`.
 
 ### Complete example
 
@@ -126,10 +133,11 @@ type TWOFAMethod interface {
 
 ## Ideas
 
-- Add Redis support for authentication
-- Add Email as 2FA
-- Add Security Stick as 2FA
+-   Add Redis support for authentication
+-   Add Email as 2FA
+-   Add Security Stick as 2FA
 
 ## Motivation
-The motivation behind this project is to provide a simple but plugable authenticator and 
+
+The motivation behind this project is to provide a simple but plugable authenticator and
 reduce the complications around authentication.

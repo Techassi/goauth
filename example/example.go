@@ -50,7 +50,7 @@ func main() {
 }
 
 func (a *App) Handle(c echo.Context) error {
-	ctx, err := a.Auth.Authenticate(User{
+	ctx, err := a.Auth.Identify(User{
 		Username: c.Param("user"),
 		Password: "Test",
 	})
@@ -64,7 +64,7 @@ func (a *App) Handle(c echo.Context) error {
 
 	return c.JSON(200, map[string]interface{}{
 		"status": http.StatusOK,
-		"token":  ctx.Key(),
+		"token":  ctx.Token(),
 	})
 }
 
