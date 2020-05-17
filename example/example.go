@@ -62,6 +62,15 @@ func (a *App) Handle(c echo.Context) error {
 		})
 	}
 
+	claims := make(map[string]interface{})
+	err = ctx.Authenticate(claims)
+	if err != nil {
+		return c.JSON(200, map[string]interface{}{
+			"status": http.StatusUnauthorized,
+			"error":  err.Error(),
+		})
+	}
+
 	return c.JSON(200, map[string]interface{}{
 		"status": http.StatusOK,
 		"token":  ctx.Token(),
@@ -75,12 +84,12 @@ func (a *App) Protected(c echo.Context) error {
 	})
 }
 
-func lookupFunction(i interface{}) (bool, error) {
+func lookupFunction(i interface{}) (interface{}, error) {
 	user := i.(User)
 	for _, u := range users {
 		if u.Username == user.Username && u.Password == user.Password {
-			return true, nil
+			return u, nil
 		}
 	}
-	return false, errors.New("User not found")
+	return nil, errors.New("User not found")
 }

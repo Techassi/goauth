@@ -7,6 +7,7 @@ import (
 type Context interface {
 	Token() string
 	User() interface{}
+	Authenticate(map[string]interface{}) error
 	UsesTwoFA() bool
 	TwoFAMethod() string
 	ValidateTwoFA(string) bool
@@ -33,6 +34,18 @@ func (c *context) User() interface{} {
 	return c.user
 }
 
+func (c *context) Authenticate(claims map[string]interface{}) error {
+	if !c.twoFAValid && c.twoFA {
+		return Error2FANotValidated
+	}
+
+	// TODO: Set exp time stamp
+	claims["user"] = c.User()
+	token, err := c.authenticator.AuthMethod().Create(claims)
+	c.token = token
+	return err
+}
+
 func (c *context) ValidateTwoFA(code string) bool {
 	return true
 }
@@ -56,7 +69,7 @@ func (c *context) TwoFAMethod() string {
 
 func (c *context) UsesTwoFA() bool {
 	v := reflect.ValueOf(c.user)
-	f := v.FieldByName("TwoFAUsed")
+	f := v.FieldByName("UsesTwoFA")
 
 	if f.IsValid() && f.Kind() == reflect.Bool {
 		return f.Bool()

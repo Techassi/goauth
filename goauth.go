@@ -18,6 +18,7 @@ type (
 		Middleware(next http.Handler) http.Handler
 		EchoMiddleware() echo.MiddlewareFunc
 		GinMiddleware() gin.HandlerFunc
+		AuthMethod() AuthenticationMethod
 		TwoFAMethod(string) TwoFAMethod
 		TwoFAMethods() map[string]TwoFAMethod
 	}
@@ -54,7 +55,8 @@ func New(options ...AuthenticatorOption) Authenticator {
 // 	3. Create token / key
 // 	4. Return context
 func (auth *authenticator) Identify(user interface{}) (Context, error) {
-	if exists, err := auth.lookupMethod.Do(user); !exists {
+	user, err := auth.lookupMethod.Do(user)
+	if err != nil {
 		return nil, err
 	}
 
@@ -120,6 +122,10 @@ func (auth *authenticator) GinMiddleware() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func (auth *authenticator) AuthMethod() AuthenticationMethod {
+	return auth.authMethod
 }
 
 func (auth *authenticator) TwoFAMethods() map[string]TwoFAMethod {
