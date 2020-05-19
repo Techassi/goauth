@@ -11,13 +11,18 @@ import (
 type AuthenticationMethod interface {
 	Name() string
 	Create(map[string]interface{}) (string, error)
-	Validate(string) (bool, error)
+	Validate(string) (JwtToken, error)
 	Lookup(*http.Request) (string, error)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////// JWT METHODS //////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
+
+type JwtToken struct {
+	Claims jwt.Claims
+	Valid  bool
+}
 
 // Jwt is the top-level JWT authentication method
 type Jwt struct {
@@ -56,19 +61,24 @@ func (j *Jwt) Create(c map[string]interface{}) (string, error) {
 }
 
 // Validate validates the JWT token
-func (j *Jwt) Validate(key string) (bool, error) {
+func (j *Jwt) Validate(key string) (JwtToken, error) {
 	if key == "" {
-		return false, ErrorEmptyKey
+		return JwtToken{}, ErrorEmptyKey
 	}
 
 	token, err := jwt.Parse(key, func(token *jwt.Token) (interface{}, error) {
 		return j.Secret, nil
 	})
 	if err != nil {
-		return false, err
+		return JwtToken{}, err
 	}
 
-	return token.Valid, nil
+	t := JwtToken{
+		Claims: token.Claims,
+		Valid:  token.Valid,
+	}
+
+	return t, nil
 }
 
 // Lookup looks up the token

@@ -12,6 +12,10 @@ goauth provides a context-based and plugable authenticator for authentication on
 
 -   TOTP (Time-based One-time Password)
 
+## Example
+
+If you want to look at an example check out the [example file](example/example.go). This file introduces the basic concepts of the library. For further information, check out the rest of the README.
+
 ## Usage
 
 Start off with importing this module

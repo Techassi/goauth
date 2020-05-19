@@ -4,6 +4,8 @@ type Context interface {
 	Token() string
 	User() interface{}
 	Authenticate(map[string]interface{}) error
+	Authenticated() bool
+	SetAuthenticated()
 	UsesTwoFA() bool
 	TwoFAMethod() string
 	ValidateTwoFA(string) bool
@@ -14,6 +16,7 @@ type Context interface {
 
 type context struct {
 	user          interface{}
+	authenticated bool
 	token         string
 	twoFAValid    bool
 	twoFAMap      map[string]interface{}
@@ -26,6 +29,14 @@ func (c *context) Token() string {
 
 func (c *context) User() interface{} {
 	return c.user
+}
+
+func (c *context) Authenticated() bool {
+	return c.authenticated
+}
+
+func (c *context) SetAuthenticated() {
+	c.authenticated = true
 }
 
 func (c *context) Authenticate(claims map[string]interface{}) error {

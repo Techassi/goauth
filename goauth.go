@@ -1,3 +1,9 @@
+/*
+
+Package goauth
+
+*/
+
 package goauth
 
 import (
@@ -14,7 +20,7 @@ type AuthenticatorOption func(auth *authenticator)
 type (
 	// Authenticator is the top level Authenticator interface
 	Authenticator interface {
-		Identify(user interface{}) (Context, error)
+		Identify(interface{}, *http.Request) (Context, error)
 		Middleware(next http.Handler) http.Handler
 		EchoMiddleware() echo.MiddlewareFunc
 		GinMiddleware() gin.HandlerFunc
@@ -51,8 +57,18 @@ func New(options ...AuthenticatorOption) Authenticator {
 }
 
 // Identify identifies the user and returns a context to further authenticate the user
-func (auth *authenticator) Identify(user interface{}) (Context, error) {
-	user, err := auth.lookupMethod.Do(user)
+func (auth *authenticator) Identify(user interface{}, r *http.Request) (Context, error) {
+	// Look for a token, if found check if valid => user is already authenticated
+	t, err := auth.authMethod.Lookup(r)
+	token, err := auth.authMethod.Validate(t)
+	if token.Valid && err == nil {
+		// ctx := auth.newContext(token.Claims.(jwt.MapClaims)["user"])
+		// ctx.SetAuthenticated()
+		// return ctx, nil
+	}
+
+	// User is not authenticated, so lookup user and create context
+	user, err = auth.lookupMethod.Do(user)
 	if err != nil {
 		return nil, err
 	}

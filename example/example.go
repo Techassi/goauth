@@ -37,8 +37,13 @@ func main() {
 
 	// The authenticator
 	g := goauth.New(
+		// Here you define your user lookup function
 		goauth.Lookup(lookupFunction),
+
+		// Here you register JWT as an authenticator method
 		goauth.JWT("HS512", []byte("mysupersecuresecret"), "cookie:Authorization"),
+
+		// If there is an error while authenticating, redirect to "/error"
 		goauth.Redirect("/error"),
 	)
 
@@ -56,34 +61,36 @@ func main() {
 	panic(e.Start(":8080"))
 }
 
+// Login handles the login route
 func (a *App) Login(c echo.Context) error {
+	// Identify your user, or if already authorized return context
 	ctx, err := a.Auth.Identify(User{
 		Username: c.Param("user"),
 		Password: "Test",
-	})
+	}, c.Request())
 
+	// If there was an error identifying the user, return this error
 	if err != nil {
-		return c.JSON(200, map[string]interface{}{
-			"status": http.StatusInternalServerError,
-			"error":  err.Error(),
-		})
+		return c.JSON(200, Error(err))
 	}
 
+	// If the user is already authorized return early
+	if ctx.Authenticated() {
+		return c.JSON(200, Authorized(ctx.Token()))
+	}
+
+	// If the user is not authorized, do so with your claims, e.g. user data
+	// Note: the user data is set as a claim per default with the key "user"
 	claims := make(map[string]interface{})
 	err = ctx.Authenticate(claims)
 	if err != nil {
-		return c.JSON(200, map[string]interface{}{
-			"status": http.StatusUnauthorized,
-			"error":  err.Error(),
-		})
+		return c.JSON(200, Unauthorized(err))
 	}
 
-	return c.JSON(200, map[string]interface{}{
-		"status": http.StatusOK,
-		"token":  ctx.Token(),
-	})
+	return c.JSON(200, Authorized(ctx.Token()))
 }
 
+// Error handles the error route
 func (a *App) Error(c echo.Context) error {
 	return c.JSON(200, map[string]interface{}{
 		"status":  http.StatusMovedPermanently,
@@ -91,6 +98,7 @@ func (a *App) Error(c echo.Context) error {
 	})
 }
 
+// Protected handles the protected route
 func (a *App) Protected(c echo.Context) error {
 	return c.JSON(200, map[string]interface{}{
 		"status":  http.StatusOK,
@@ -106,4 +114,25 @@ func lookupFunction(i interface{}) (interface{}, error) {
 		}
 	}
 	return nil, errors.New("User not found")
+}
+
+func Authorized(token string) map[string]interface{} {
+	return map[string]interface{}{
+		"status": http.StatusOK,
+		"token":  token,
+	}
+}
+
+func Unauthorized(err error) map[string]interface{} {
+	return map[string]interface{}{
+		"status": http.StatusUnauthorized,
+		"error":  err.Error(),
+	}
+}
+
+func Error(err error) map[string]interface{} {
+	return map[string]interface{}{
+		"status": http.StatusInternalServerError,
+		"error":  err.Error(),
+	}
 }

@@ -23,8 +23,8 @@ func (auth *authenticator) Middleware(next http.Handler) http.Handler {
 			auth.json(w, http.StatusInternalServerError, ErrorKeyLookup(err))
 		}
 
-		valid, err := auth.authMethod.Validate(t)
-		if !valid || err != nil {
+		token, err := auth.authMethod.Validate(t)
+		if !token.Valid || err != nil {
 			if auth.redirect {
 				auth.redirectTo(w, r, auth.redirectTarget)
 			}
@@ -44,8 +44,8 @@ func (auth *authenticator) EchoMiddleware() echo.MiddlewareFunc {
 			// 	return c.JSON(http.StatusInternalServerError, ErrorKeyLookup(err))
 			// }
 
-			valid, err := auth.authMethod.Validate(t)
-			if !valid || err != nil {
+			token, err := auth.authMethod.Validate(t)
+			if !token.Valid || err != nil {
 				if auth.redirect {
 					return c.Redirect(http.StatusMovedPermanently, auth.redirectTarget)
 				}
@@ -65,8 +65,8 @@ func (auth *authenticator) GinMiddleware() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, ErrorKeyLookup(err))
 		}
 
-		valid, err := auth.authMethod.Validate(t)
-		if !valid || err != nil {
+		token, err := auth.authMethod.Validate(t)
+		if !token.Valid || err != nil {
 			if auth.redirect {
 				c.Redirect(http.StatusMovedPermanently, auth.redirectTarget)
 			}
