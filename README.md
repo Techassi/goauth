@@ -131,11 +131,17 @@ type TWOFAMethod interface {
 }
 ```
 
+## Current development
+
+-   Add RegisterTwoFA method
+-   Add context short time storage to carry contexts across multiple handlers
+
 ## Ideas
 
 -   Add Redis support for authentication
 -   Add Email as 2FA
 -   Add Security Stick as 2FA
+-   Think about returning a token even if 2FA isn't validated yet. Use a claim to indicate if the token is validated.
 
 ## Motivation
 

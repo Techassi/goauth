@@ -14,7 +14,7 @@ type TwoFAMethod interface {
 	Uri() string
 
 	// Validate validates the provided code
-	Validate() bool
+	Validate(string, string) bool
 }
 
 // Totp is the deafult TOTP struct
@@ -81,6 +81,6 @@ func (t *Totp) Uri() string {
 	return "totp"
 }
 
-func (t *Totp) Validate() bool {
-	return true
+func (t *Totp) Validate(code, secret string) bool {
+	return totp.Validate(code, secret)
 }

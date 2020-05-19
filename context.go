@@ -1,9 +1,5 @@
 package goauth
 
-import (
-	"reflect"
-)
-
 type Context interface {
 	Token() string
 	User() interface{}
@@ -12,17 +8,15 @@ type Context interface {
 	TwoFAMethod() string
 	ValidateTwoFA(string) bool
 	GenerateTwoFA() (string, error)
+	RegisterTwoFA() (string, error)
 	Authenticator() Authenticator
 }
 
 type context struct {
 	user          interface{}
 	token         string
-	twoFA         bool
 	twoFAValid    bool
-	twoFAMethod   string
-	twoFASecret   string
-	twoFAAccount  string
+	twoFAMap      map[string]interface{}
 	authenticator Authenticator
 }
 
@@ -35,7 +29,7 @@ func (c *context) User() interface{} {
 }
 
 func (c *context) Authenticate(claims map[string]interface{}) error {
-	if !c.twoFAValid && c.twoFA {
+	if !c.twoFAValid && c.UsesTwoFA() {
 		return Error2FANotValidated
 	}
 
@@ -47,35 +41,26 @@ func (c *context) Authenticate(claims map[string]interface{}) error {
 }
 
 func (c *context) ValidateTwoFA(code string) bool {
-	return true
+	m := c.authenticator.TwoFAMethod(c.TwoFAMethod())
+	c.twoFAValid = m.Validate(code, c.twoFAMap["twofa_secret"].(string))
+	return c.twoFAValid
 }
 
 func (c *context) GenerateTwoFA() (string, error) {
 	m := c.authenticator.TwoFAMethod(c.TwoFAMethod())
-	return m.Generate(c.twoFAAccount)
+	return m.Generate(c.twoFAMap["twofa_user"].(string))
 }
 
-// TODO: Add custom json tags
+func (c *context) RegisterTwoFA() (string, error) {
+	return "", nil
+}
+
 func (c *context) TwoFAMethod() string {
-	v := reflect.ValueOf(c.user)
-	f := v.FieldByName("TwoFAMethod")
-
-	if f.IsValid() && f.Kind() == reflect.String {
-		return f.String()
-	}
-
-	return ""
+	return c.twoFAMap["twofa_method"].(string)
 }
 
 func (c *context) UsesTwoFA() bool {
-	v := reflect.ValueOf(c.user)
-	f := v.FieldByName("UsesTwoFA")
-
-	if f.IsValid() && f.Kind() == reflect.Bool {
-		return f.Bool()
-	}
-
-	return false
+	return c.twoFAMap["uses_twofa"].(bool)
 }
 
 func (c *context) Authenticator() Authenticator {

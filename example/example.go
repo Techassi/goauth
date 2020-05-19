@@ -30,10 +30,16 @@ func main() {
 		Password: "Test1",
 	})
 
+	users[0].UsesTwoFA = false
+	users[0].TwoFAMethod = "totp"
+	users[0].TwoFASecret = "secret"
+	users[0].TwoFAUser = "test@test.de"
+
 	// The authenticator
 	g := goauth.New(
 		goauth.Lookup(lookupFunction),
 		goauth.JWT("HS512", []byte("mysupersecuresecret"), "cookie:Authorization"),
+		goauth.Redirect("/error"),
 	)
 
 	// Your app
@@ -43,13 +49,14 @@ func main() {
 
 	// Your routes
 	e := echo.New()
-	e.GET("/:user", app.Handle)
+	e.GET("/login/:user", app.Login)
+	e.GET("/error", app.Error)
 	e.GET("/protected", app.Protected, g.EchoMiddleware())
 
 	panic(e.Start(":8080"))
 }
 
-func (a *App) Handle(c echo.Context) error {
+func (a *App) Login(c echo.Context) error {
 	ctx, err := a.Auth.Identify(User{
 		Username: c.Param("user"),
 		Password: "Test",
@@ -74,6 +81,13 @@ func (a *App) Handle(c echo.Context) error {
 	return c.JSON(200, map[string]interface{}{
 		"status": http.StatusOK,
 		"token":  ctx.Token(),
+	})
+}
+
+func (a *App) Error(c echo.Context) error {
+	return c.JSON(200, map[string]interface{}{
+		"status":  http.StatusMovedPermanently,
+		"message": "You are unauthorized and were moved to this error page",
 	})
 }
 
