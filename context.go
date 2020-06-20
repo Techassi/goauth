@@ -1,8 +1,10 @@
 package goauth
 
+// Context describes the current authentication context and allows the user to
+// authenticate, validate and register 2FA
 type Context interface {
 	Token() string
-	User() interface{}
+	User() map[string]interface{}
 	Authenticate(map[string]interface{}) error
 	Authenticated() bool
 	SetAuthenticated()
@@ -10,12 +12,12 @@ type Context interface {
 	TwoFAMethod() string
 	ValidateTwoFA(string) bool
 	GenerateTwoFA() (string, error)
-	RegisterTwoFA() (string, error)
+	RegisterTwoFA(string) (string, string, error)
 	Authenticator() Authenticator
 }
 
 type context struct {
-	user          interface{}
+	user          map[string]interface{}
 	authenticated bool
 	token         string
 	twoFAValid    bool
@@ -27,7 +29,7 @@ func (c *context) Token() string {
 	return c.token
 }
 
-func (c *context) User() interface{} {
+func (c *context) User() map[string]interface{} {
 	return c.user
 }
 
@@ -40,9 +42,9 @@ func (c *context) SetAuthenticated() {
 }
 
 func (c *context) Authenticate(claims map[string]interface{}) error {
-	if !c.twoFAValid && c.UsesTwoFA() {
-		return Error2FANotValidated
-	}
+	// if !c.twoFAValid && c.UsesTwoFA() {
+	// 	return Error2FANotValidated
+	// }
 
 	// TODO: Set exp time stamp
 	claims["user"] = c.User()
@@ -62,8 +64,9 @@ func (c *context) GenerateTwoFA() (string, error) {
 	return m.Generate(c.twoFAMap["twofa_user"].(string))
 }
 
-func (c *context) RegisterTwoFA() (string, error) {
-	return "", nil
+func (c *context) RegisterTwoFA(account string) (string, string, error) {
+	m := c.authenticator.TwoFAMethod(c.TwoFAMethod())
+	return m.Register(account)
 }
 
 func (c *context) TwoFAMethod() string {

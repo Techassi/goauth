@@ -19,6 +19,7 @@ type AuthenticationMethod interface {
 /////////////////////////////////////// JWT METHODS //////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+// JwtToken is a wrapper around github.com/dgrijalva/jwt-go token
 type JwtToken struct {
 	Claims jwt.Claims
 	Valid  bool
@@ -38,6 +39,64 @@ type Jwt struct {
 	// cookie:Authorization
 	// Required.
 	LookupString string
+}
+
+// JWT registers JWT as the authentication method
+func JWT(method string, secret []byte, lookup string) AuthenticatorOption {
+	return func(auth *authenticator) {
+		auth.authMethod = newJwt(method, secret, lookup)
+	}
+}
+
+func newJwt(method string, s []byte, l string) AuthenticationMethod {
+	var m jwt.SigningMethod
+
+	switch method {
+	case "HS512":
+		m = jwt.SigningMethodHS512
+	case "HS384":
+		m = jwt.SigningMethodHS384
+	case "HS256":
+		m = jwt.SigningMethodHS256
+	case "ES512":
+		m = jwt.SigningMethodES512
+	case "ES384":
+		m = jwt.SigningMethodES384
+	case "ES256":
+		m = jwt.SigningMethodES256
+	case "PS512":
+		m = jwt.SigningMethodPS512
+	case "PS384":
+		m = jwt.SigningMethodPS384
+	case "PS256":
+		m = jwt.SigningMethodPS256
+	case "RS512":
+		m = jwt.SigningMethodRS512
+	case "RS384":
+		m = jwt.SigningMethodRS384
+	case "RS256":
+		m = jwt.SigningMethodRS256
+	default:
+		panic("Unsupported signing method")
+	}
+
+	if len(s) == 0 {
+		panic("Empty secret")
+	}
+
+	if l == "" {
+		panic("Key lookup cannot be empty")
+	}
+
+	if !strings.Contains(l, "cookie") && !strings.Contains(l, "header") {
+		panic("Unsupported key lookup")
+	}
+
+	return &Jwt{
+		SigningMethod: m,
+		Secret:        s,
+		LookupString:  l,
+	}
 }
 
 // Name returns the name of the authentication method
@@ -98,60 +157,46 @@ func (j *Jwt) Lookup(r *http.Request) (string, error) {
 	}
 }
 
-// JWT registers JWT as the authentication method
-func JWT(method string, secret []byte, lookup string) AuthenticatorOption {
-	return func(auth *authenticator) {
-		auth.authMethod = newJwt(method, secret, lookup)
-	}
-}
+//////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////// SESSION METHODS ////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
 
-func newJwt(method string, s []byte, l string) AuthenticationMethod {
-	var m jwt.SigningMethod
+// type Session struct {
+// 	Store  *sessions.CookieStore
+// 	Secret []byte
+// }
 
-	switch method {
-	case "HS512":
-		m = jwt.SigningMethodHS512
-	case "HS384":
-		m = jwt.SigningMethodHS384
-	case "HS256":
-		m = jwt.SigningMethodHS256
-	case "ES512":
-		m = jwt.SigningMethodES512
-	case "ES384":
-		m = jwt.SigningMethodES384
-	case "ES256":
-		m = jwt.SigningMethodES256
-	case "PS512":
-		m = jwt.SigningMethodPS512
-	case "PS384":
-		m = jwt.SigningMethodPS384
-	case "PS256":
-		m = jwt.SigningMethodPS256
-	case "RS512":
-		m = jwt.SigningMethodRS512
-	case "RS384":
-		m = jwt.SigningMethodRS384
-	case "RS256":
-		m = jwt.SigningMethodRS256
-	default:
-		panic("Unsupported signing method")
-	}
+// // SessionStore registers sessions as the authentication method
+// func SessionStore(secret []byte) AuthenticatorOption {
+// 	return func(auth *authenticator) {
+// 		auth.authMethod = newSessionStore(secret)
+// 	}
+// }
 
-	if len(s) == 0 {
-		panic("Empty secret")
-	}
+// func newSessionStore(secret []byte) AuthenticationMethod {
+// 	store := sessions.NewCookieStore(secret)
+// 	return &Session{
+// 		Secret: secret,
+// 		Store:  store,
+// 	}
+// }
 
-	if l == "" {
-		panic("Key lookup cannot be empty")
-	}
+// // Name returns the name of the authentication method
+// func (j *Session) Name() string {
+// 	return "session"
+// }
 
-	if !strings.Contains(l, "cookie") && !strings.Contains(l, "header") {
-		panic("Unsupported key lookup")
-	}
+// // Create creates a new session
+// func (j *Session) Create(c map[string]interface{}) (string, error) {
+// 	return "", nil
+// }
 
-	return &Jwt{
-		SigningMethod: m,
-		Secret:        s,
-		LookupString:  l,
-	}
-}
+// // Validate validates the JWT token
+// func (j *Session) Validate(key string) (interface{}, error) {
+// 	return true, nil
+// }
+
+// // Lookup looks up the token
+// func (j *Session) Lookup(r *http.Request) (string, error) {
+// 	return "", nil
+// }

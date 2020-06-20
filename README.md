@@ -38,7 +38,7 @@ auth := goauth.New(
 Your lookup function has to be implemented like this
 
 ```golang
-func yourLookupFunction(i interface{}) (valid bool, err error) {
+func yourLookupFunction(m map[string]interface{}) (valid bool, err error) {
 	// Lookup your user and validate the credentials
 	// If there was an error:
 	return false, err
@@ -139,6 +139,7 @@ type TWOFAMethod interface {
 
 -   Add RegisterTwoFA method
 -   Add context short time storage to carry contexts across multiple handlers
+-   Implement tag lookup
 
 ## Ideas
 

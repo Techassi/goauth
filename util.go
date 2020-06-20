@@ -1,6 +1,7 @@
 package goauth
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"reflect"
@@ -24,6 +25,16 @@ func (auth *authenticator) json(w http.ResponseWriter, code int, i interface{}) 
 // Write JSON to response writer
 func (auth *authenticator) redirectTo(w http.ResponseWriter, r *http.Request, target string) {
 	http.Redirect(w, r, target, http.StatusMovedPermanently)
+}
+
+func interfaceToMap(i interface{}, m *map[string]interface{}) error {
+	b, err := json.Marshal(i)
+	if err != nil {
+		return err
+	}
+	d := json.NewDecoder(bytes.NewBuffer(b))
+	err = d.Decode(m)
+	return err
 }
 
 func getTags(iface interface{}) map[string]interface{} {

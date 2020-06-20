@@ -7,11 +7,10 @@ type TwoFAMethod interface {
 	// Generate generates a new key
 	Generate(string) (string, error)
 
-	// Secret is reponsible for token generation. Each token is unique for each user.
-	Secret() (string, error)
+	Register(string) (string, string, error)
 
-	// Uri creates a Two Factor Authentication uri if needed.
-	Uri() string
+	// Secret is reponsible for token generation. Each token is unique for each user.
+	Secret() ([]byte, error)
 
 	// Validate validates the provided code
 	Validate(string, string) bool
@@ -54,7 +53,7 @@ func newTotp(issuer string, n int, c func(int) ([]byte, error)) TwoFAMethod {
 }
 
 func (t *Totp) Generate(account string) (string, error) {
-	secret, err := t.cryptoMethod(t.secretLength)
+	secret, err := t.Secret()
 	if err != nil {
 		return "", err
 	}
@@ -72,13 +71,27 @@ func (t *Totp) Generate(account string) (string, error) {
 	return key.String(), nil
 }
 
-func (t *Totp) Secret() (string, error) {
-	s, err := t.cryptoMethod(t.secretLength)
-	return bytesToString(s), err
+func (t *Totp) Register(account string) (string, string, error) {
+	secret, err := t.Secret()
+	if err != nil {
+		return "", "", err
+	}
+
+	key, err := totp.Generate(totp.GenerateOpts{
+		Issuer:      t.issuer,
+		AccountName: account,
+		Secret:      secret,
+	})
+
+	if err != nil {
+		return "", "", err
+	}
+
+	return bytesToString(secret), key.String(), nil
 }
 
-func (t *Totp) Uri() string {
-	return "totp"
+func (t *Totp) Secret() ([]byte, error) {
+	return t.cryptoMethod(t.secretLength)
 }
 
 func (t *Totp) Validate(code, secret string) bool {

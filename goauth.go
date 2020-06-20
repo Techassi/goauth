@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sync"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/labstack/echo"
 )
@@ -62,18 +63,25 @@ func (auth *authenticator) Identify(user interface{}, r *http.Request) (Context,
 	t, err := auth.authMethod.Lookup(r)
 	token, err := auth.authMethod.Validate(t)
 	if token.Valid && err == nil {
-		// ctx := auth.newContext(token.Claims.(jwt.MapClaims)["user"])
-		// ctx.SetAuthenticated()
-		// return ctx, nil
+		ctx := auth.newContext(token.Claims.(jwt.MapClaims))
+		ctx.SetAuthenticated()
+		return ctx, nil
 	}
 
-	// User is not authenticated, so lookup user and create context
-	user, err = auth.lookupMethod.Do(user)
+	// Convert user interface to map
+	var m map[string]interface{}
+	err = interfaceToMap(user, &m)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx := auth.newContext(user)
+	// User is not authenticated, so lookup user and create context
+	user, err = auth.lookupMethod.Do(m)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx := auth.newContext(m)
 	return ctx, nil
 }
 
@@ -89,13 +97,11 @@ func (auth *authenticator) TwoFAMethod(key string) TwoFAMethod {
 	return auth.twoFaMethods[key]
 }
 
-// TODO: Extract user 2FA information
-func (auth *authenticator) newContext(user interface{}) Context {
-	tags := getTags(user)
-
+// TODO: Extract user 2FA information - do this more cleanly
+func (auth *authenticator) newContext(usermap map[string]interface{}) Context {
 	return &context{
-		user:          user,
+		user:          usermap,
 		authenticator: auth,
-		twoFAMap:      tags,
+		// twoFAMap:      getTags(user),
 	}
 }

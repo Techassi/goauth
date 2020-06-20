@@ -61,6 +61,10 @@ func main() {
 	panic(e.Start(":8080"))
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////// ROUTE HANDLERS //////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 // Login handles the login route
 func (a *App) Login(c echo.Context) error {
 	// Identify your user, or if already authorized return context
@@ -71,12 +75,12 @@ func (a *App) Login(c echo.Context) error {
 
 	// If there was an error identifying the user, return this error
 	if err != nil {
-		return c.JSON(200, Error(err))
+		return c.JSON(http.StatusInternalServerError, Error(err))
 	}
 
 	// If the user is already authorized return early
 	if ctx.Authenticated() {
-		return c.JSON(200, Authorized(ctx.Token()))
+		return c.JSON(200, Authorized(""))
 	}
 
 	// If the user is not authorized, do so with your claims, e.g. user data
@@ -84,10 +88,10 @@ func (a *App) Login(c echo.Context) error {
 	claims := make(map[string]interface{})
 	err = ctx.Authenticate(claims)
 	if err != nil {
-		return c.JSON(200, Unauthorized(err))
+		return c.JSON(http.StatusUnauthorized, Unauthorized(err))
 	}
 
-	return c.JSON(200, Authorized(ctx.Token()))
+	return c.JSON(http.StatusOK, Authorized(ctx.Token()))
 }
 
 // Error handles the error route
@@ -106,33 +110,43 @@ func (a *App) Protected(c echo.Context) error {
 	})
 }
 
-func lookupFunction(i interface{}) (interface{}, error) {
-	user := i.(User)
+//////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////// STATUS MESSAGES //////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+// Authorized returns the token when sucessfully authorized
+func Authorized(t string) map[string]interface{} {
+	return map[string]interface{}{
+		"status": "Authorized",
+		"token":  t,
+	}
+}
+
+// Unauthorized indicates the user is not authorized
+func Unauthorized(err error) map[string]interface{} {
+	return map[string]interface{}{
+		"error":  err.Error(),
+		"status": "Unauthorized",
+	}
+}
+
+// Error indicates there was an error while authorizing
+func Error(err error) map[string]interface{} {
+	return map[string]interface{}{
+		"error":  err.Error(),
+		"status": "Error",
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////// LOOKUP FUNCTION /////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+func lookupFunction(m map[string]interface{}) (interface{}, error) {
 	for _, u := range users {
-		if u.Username == user.Username && u.Password == user.Password {
+		if u.Username == m["Username"] && u.Password == m["Password"] {
 			return u, nil
 		}
 	}
 	return nil, errors.New("User not found")
-}
-
-func Authorized(token string) map[string]interface{} {
-	return map[string]interface{}{
-		"status": http.StatusOK,
-		"token":  token,
-	}
-}
-
-func Unauthorized(err error) map[string]interface{} {
-	return map[string]interface{}{
-		"status": http.StatusUnauthorized,
-		"error":  err.Error(),
-	}
-}
-
-func Error(err error) map[string]interface{} {
-	return map[string]interface{}{
-		"status": http.StatusInternalServerError,
-		"error":  err.Error(),
-	}
 }
